@@ -1,1 +1,8 @@
+typedef struct {
+    int prozess_id;
+    int size;
+    int priority;
+    char location;//'M'
+    int last_USED ,// Zeitstempel der letzen Nutzung } prozess;
+
 
