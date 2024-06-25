@@ -18,3 +18,25 @@ typedef struct MemoryBlock {
     struct MemoryBlock * next;
     
 } MemoryBlock;
+
+// Global variables
+ManagementType management_type;
+AllocationType allocation_type;
+MemoryBlock* static_partitions[NUM_PARTITIONS];
+int static_partition_usage[NUM_PARTITIONS];
+MemoryBlock* dynamic_free_list;
+MemoryBlock* dynamic_allocated_list;
+MemoryBlock* buddy_free_list[10];
+FILE* log_file = NULL;
+
+// Signal handler for graceful termination
+void handle_signal(int signal) {
+    if (log_file) {
+        fclose(log_file);
+    }
+    exit(EXIT_SUCCESS);
+}
+
+
+
+
