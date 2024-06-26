@@ -78,3 +78,10 @@ void free_static_memory(void* ptr){
     printf("Error: Invalid static memory adress.\n");
     
 }
+
+// Initialize dynamic memory system
+void initialize_dynamic_system() {
+    dynamic_free_list = malloc(sizeof(MemoryBlock));
+    dynamic_free_list->size = MEMORY_SIZE;
+    dynamic_free_list->next = NULL;
+}
