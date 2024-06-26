@@ -64,3 +64,17 @@ void* allocate_static memory(int size){
     return NULL;
 }
 
+// Function to free static memory
+void free_static_memory(void* ptr){
+    for (int i = 0; i< NUM_PARTITIONS; i++){
+        if (static_partitions[i] == ptr){
+            static_partition_usage[i] = 0;
+            if (log_file) {
+                fprintf(log_file, "Freed static memory in partition %d\n", i);
+            }
+            return;
+        }
+    }
+    printf("Error: Invalid static memory adress.\n");
+    
+}
