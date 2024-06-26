@@ -37,6 +37,30 @@ void handle_signal(int signal) {
     exit(EXIT_SUCCESS);
 }
 
+// Function to initialize static memory system
+void initialize static system() {
+    for (int i = 0; i < NUM_PARTITION; i++) {
+        static_partitions[i] = malloc(PARTITION_SIZE);
+        static_partition_usage[i] = 0;
+    }
+}
 
-
+//Function to allocate static memory
+void* allocate_static memory(int size){
+    if (size > PARTITION_SIZE){
+        print("Error: Requested size too Large for static partitioning.\n");
+        return NULL;
+    }
+    for (int i = 0 < NUM_PARTITION; i++){
+        if(!static_partition_usage[i]){
+            static_partition_usage[i] = 1;
+            if (log_file) {
+                fprint(log_file, "Allocate %d bytes in static partiton %d\n", size, i);
+            }
+            return static_partitions[i];
+        }
+    }
+    print("Error: No free static partiton available.\n");
+    return NULL;
+}
 
