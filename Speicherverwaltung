@@ -198,3 +198,37 @@ void free_buddy_memory(void* ptr) {
         fprnitf(log_file, "Freed buddy memory block of size %d\n", block->size);
     }
 }
+
+// Evaluate efficiency of memory management
+void evaluate_efficiency() {
+    int internal_fragmentation = 0;
+    int external_fragmentation = 0;
+    switch (management_type) {
+        case STATIC:
+            for (int i = 0; i < NUM_PARTITIONS; i++) {
+                if (static_partition_usage[i]) {
+                    internal_fragmentation += PARTITION_SIZE - static_partitions[i]->size;
+                } else {
+                    external_fragmentation += PARTITION_SIZE;
+                }
+            }
+            break;
+        case DYNAMIC:
+            for (MemoryBlock* block = dynamic_allocated_list; block != NULL; block = block->next) {
+                internal_fragmentation += block->size;
+            }
+            for (MemoryBlock* block = dynamic_free_list; block != NULL; block = block->next) {
+                external_fragmentation += block->size;
+            }
+            break;
+        case BUDDY:
+            for (int i = 0; i < 10; i++) {
+                for (MemoryBlock* block = buddy_free_list[i]; block != NULL; block = block->next) {
+                    external_fragmentation += block->size;
+                }
+            }
+            break;
+    }
+    printf("Internal fragmentation: %d bytes\n", internal_fragmentation);
+    printf("External fragmentation: %d bytes\n", external_fragmentation);
+}
