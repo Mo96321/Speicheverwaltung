@@ -158,12 +158,12 @@ buddy_free_list[9]->next=NULL;
 
 }
 
-// Alllocate buddy memory
+// Allocate buddy memory
 void* allocate_buddy_memory(int size) {
     int order = 0;
     while ((1 << order) < size) order++;
-    if (order > 9){
-        printf("Error: Requested size too large for buddy system.\n")
+    if (order > 9) {
+        printf("Error: Requested size too large for buddy system.\n");
         return NULL;
     }
     for (int i = order; i < 10; i++) {
@@ -177,8 +177,8 @@ void* allocate_buddy_memory(int size) {
                 buddy->next = buddy_free_list[i];
                 buddy_free_list[i] = buddy;
             }
-            block->next = NULL,
-            if (log_file){
+            block->next = NULL;
+            if (log_file) {
                 fprintf(log_file, "Allocated %d bytes using buddy system\n", size);
             }
             return (void*)(block + 1);
@@ -188,7 +188,7 @@ void* allocate_buddy_memory(int size) {
 }
 
 // Free buddy memory
-void free_buddy_memory = (void* ptr) {
+void free_buddy_memory(void* ptr) {
     MemoryBlock* block = (MemoryBlock*)ptr - 1;
     int order = 0;
     while ((1 << order) < block->size) order++;
