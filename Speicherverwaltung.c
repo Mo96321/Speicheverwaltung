@@ -38,24 +38,24 @@ void handle_signal(int signal) {
 }
 
 // Function to initialize static memory system
-void initialize_static_system() {
-    for (int i = 0; i < NUM_PARTITIONS; i++) {
+void initialize static system() {
+    for (int i = 0; i < NUM_PARTITION; i++) {
         static_partitions[i] = malloc(PARTITION_SIZE);
         static_partition_usage[i] = 0;
     }
 }
 
-// Function to allocate static memory
-void* allocate_static_memory(int size) {
-    if (size > PARTITION_SIZE) {
-        printf("Error: Requested size too large for static partitioning.\n");
+//Function to allocate static memory
+void* allocate_static memory(int size){
+    if (size > PARTITION_SIZE){
+        print("Error: Requested size too Large for static partitioning.\n");
         return NULL;
     }
-    for (int i = 0; i < NUM_PARTITIONS; i++) {
-        if (!static_partition_usage[i]) {
+    for (int i = 0 < NUM_PARTITION; i++){
+        if(!static_partition_usage[i]){
             static_partition_usage[i] = 1;
             if (log_file) {
-                fprintf(log_file, "Allocated %d bytes in static partition %d\n", size, i);
+                fprint(log_file, "Allocate %d bytes in static partiton %d\n", size, i);
             }
             return static_partitions[i];
         }
@@ -86,7 +86,8 @@ void initialize_dynamic_system() {
     dynamic_free_list->next = NULL;
 }
 
-// Allocate dynamic memory using the selected allocation type
+// 
+
 void * allocate_dynamic_memory(int size) {
     MemoryBlock *prev = NULL, *current = dynamic_free_list, *best_fit = NULL, *best_fit_prev = NULL;
     while (current) {
@@ -134,26 +135,4 @@ void * allocate_dynamic_memory(int size) {
         fprintf(log_file, "Allocated %d bytes dynamically\n", size);
     }
     return (void *)(current + 1);
-}
-
-// Free dynamic memory
-void free_dynamic_memory(void* ptr){
-    MemoryBlock* block= (MemoryBlock*)ptr-1;
-    block->next=dynamic_free_list;
-    dynamic_free_list=block;
-    if(log_file){
-        fprintf(log_file, "Freed dynamic memory block of size %d\n",block->size);
-
-    }
-}
-
-// Initialize buddy memory system
-void initialize_buddy_system(){
-    for(int i = 0; i<10;i++){
-        buddy_free_list[i]= NULL;
-    }
-buddy_free_list[9]= malloc(sizeof(MemoryBlock));
-buddy_free_list[9]->size=MEMORY_SIZE;
-buddy_free_list[9]->next=NULL;
-
 }
