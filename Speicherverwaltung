@@ -66,8 +66,8 @@ void* allocate_static memory(int size){
 
 // Function to free static memory
 void free_static_memory(void* ptr){
-    for (int i = 0; i< NUM_PARTITIONS; i++){
-        if (static_partitions[i] == ptr){
+    for (int i = 0; i< NUM_PARTITIONS; i++) {
+        if (static_partitions[i] == ptr) {
             static_partition_usage[i] = 0;
             if (log_file) {
                 fprintf(log_file, "Freed static memory in partition %d\n", i);
@@ -84,4 +84,54 @@ void initialize_dynamic_system() {
     dynamic_free_list = malloc(sizeof(MemoryBlock));
     dynamic_free_list->size = MEMORY_SIZE;
     dynamic_free_list->next = NULL;
+}
+
+// Allocate dynamic memory using the selected allocation type
+void * allocate_dynamic_memory(int size) {
+    MemoryBlock *prev = NULL, *current = dynamic_free_list, *best_fit = NULL, *best_fit_prev = NULL;
+    while (current) {
+        if (current->size >= size){
+            if (allocation_type == FIRST_FIT) {
+                break;
+            } else if (allocation_type == BEST_FIT) {
+                if (!best_fit || current->size < best_fit->size) {
+                    best_fit = current;
+                    best_fit_prev = prev;
+                }
+            }
+        }
+        prev = current;
+        current = current->next;
+    }
+    if (allocation_type == BEST_FIT) {
+        current = best_fit;
+        prev = best_fit_prev;
+    }
+    if (!current || current->size < size) {
+        printf("Error: No suitable memory block found.\n");
+        return NULL;
+    }
+    if (current->size == size) {
+        if (prev) {
+            prev->next = current->next;
+        } else {
+            dynamic_free_list = current->next;
+        }
+    } else {
+        MemoryBlock *new_block = (MemoryBlock *)((char *)current + size);
+        new_block->size = current->size - size;
+        new_block->next = current->next;
+        if (prev) {
+            prev->next = new_block;
+        } else {
+            dynamic_free_list = new_block;
+        }
+        current->size = size;
+    }
+    current->next = dynamic_allocated_list;
+    dynamic_allocated_list = current;
+    if (log_file) {
+        fprintf(log_file, "Allocated %d bytes dynamically\n", size);
+    }
+    return (void *)(current + 1);
 }
