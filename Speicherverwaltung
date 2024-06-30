@@ -3,7 +3,7 @@
 #include <string.h>
 #include <signal.h>
 
-// Constans
+// Constants
 #define MEMORY_SIZE 1024
 #define PARTITION_SIZE 128
 #define NUM_PARTITIONS (MEMORY_SIZE / PARTITION_SIZE)
@@ -66,7 +66,7 @@ void* allocate_static_memory(int size) {
 
 // Function to free static memory
 void free_static_memory(void* ptr){
-    for (int i = 0; i< NUM_PARTITIONS; i++) {
+    for (int i = 0; i < NUM_PARTITIONS; i++) {
         if (static_partitions[i] == ptr) {
             static_partition_usage[i] = 0;
             if (log_file) {
@@ -90,7 +90,7 @@ void initialize_dynamic_system() {
 void * allocate_dynamic_memory(int size) {
     MemoryBlock *prev = NULL, *current = dynamic_free_list, *best_fit = NULL, *best_fit_prev = NULL;
     while (current) {
-        if (current->size >= size){
+        if (current->size >= size) {
             if (allocation_type == FIRST_FIT) {
                 break;
             } else if (allocation_type == BEST_FIT) {
@@ -187,6 +187,7 @@ void* allocate_buddy_memory(int size) {
     printf("Error: Kein geeigneter Buddy-Block gefunden.\n");
 }
 
+
 // Free buddy memory
 void free_buddy_memory(void* ptr) {
     MemoryBlock* block = (MemoryBlock*)ptr - 1;
@@ -198,6 +199,8 @@ void free_buddy_memory(void* ptr) {
         fprintf(log_file, "Freigegebener Buddy-Speicherblock der Größe %d\n", block->size);
     }
 }
+
+
 
 // Evaluate efficiency of memory management
 void evaluate_efficiency() {
@@ -232,6 +235,7 @@ void evaluate_efficiency() {
     printf("Interne Fragmentierung: %d bytes\n", internal_fragmentation);
     printf("Externe Fragmentierung: %d bytes\n", external_fragmentation);
 }
+
 
 //Function to parse command line arguments
 void parse_arguments(int argc, char* argv[]) {
@@ -274,10 +278,11 @@ void parse_arguments(int argc, char* argv[]) {
     }
 }
 
+
 // Function to handle user input interactively
 void handle_user_input() {
     while (1) {
-        printf("Geben Sie Befehl ein (allocate <Größe> / free <Adresse> / exit:)");
+        printf("Geben Sie Befehl ein (allocate <Größe> / free <Adresse> / Beenden): ");
         char command[10];
         int size;
         void* address;
@@ -319,6 +324,8 @@ void handle_user_input() {
     }
 }
 
+
+
 // Main function
 int main(int argc, char* argv[]) {
     signal(SIGINT, handle_signal);
@@ -341,3 +348,14 @@ int main(int argc, char* argv[]) {
     }
     return 0;
 }
+
+
+
+
+
+
+
+
+
+
+
