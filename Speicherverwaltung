@@ -10,85 +10,85 @@
 #define NUM_PARTITIONS (MEMORY_SIZE / PARTITION_SIZE)
 
 
-// Enums for management types and allocation types
-typedef enum { STATIC, DYNAMIC, BUDDY } ManagementType;
-typedef enum { FIRST_FIT, NEXT_FIT, BEST_FIT } AllocationType;
-
-
 // Struct for memory blocks
 typedef struct MemoryBlock {
     int size;
-    struct MemoryBlock * next;
-    
+    struct MemoryBlock* next;
 } MemoryBlock;
 
 
+// Enums for management types and allocation types
+enum { STATIC, DYNAMIC, BUDDY } management_type;
+enum { FIRST_FIT, NEXT_FIT, BEST_FIT } allocation_type;
+
+
 // Global variables
-ManagementType management_type;
-AllocationType allocation_type;
 MemoryBlock* static_partitions[NUM_PARTITIONS];
-int static_partition_usage[NUM_PARTITIONS];
-MemoryBlock* dynamic_free_list;
-MemoryBlock* dynamic_allocated_list;
-MemoryBlock* buddy_free_list[10];
+MemoryBlock* static_partition_usage[NUM_PARTITIONS];
+MemoryBlock* dynamic_free_list = NULL;
+MemoryBlock* dynamic_allocated_list = NULL;
+MemoryBlock* buddy_free_list[10] = {NULL};
 FILE* log_file = NULL;
 
 
-// Signal handler for graceful termination
+// Handle interrupt signal
 void handle_signal(int signal) {
     if (log_file) {
         fclose(log_file);
     }
-    exit(EXIT_SUCCESS);
+    exit(0);
 }
 
 
-// Function to initialize static memory system
+// Initialize static memory management system
 void initialize_static_system() {
     for (int i = 0; i < NUM_PARTITIONS; i++) {
-        static_partitions[i] = malloc(PARTITION_SIZE);
-        static_partition_usage[i] = 0;
+        static_partitions[i] = malloc(sizeof(MemoryBlock));
+        static_partitions[i]->size = PARTITION_SIZE;
+        static_partitions[i]->next = NULL;
+        static_partition_usage[i] = NULL;
     }
 }
 
 
-// Function to allocate static memory
+// Allocate static memory
 void* allocate_static_memory(int size) {
     if (size > PARTITION_SIZE) {
-        printf("Error:Angeforderte Größe zu groß für statische Partitionierung.\n");
+        printf("Error: Angeforderte Größe zu groß für statische Partitionierung\n");
         return NULL;
     }
     for (int i = 0; i < NUM_PARTITIONS; i++) {
-        if (!static_partition_usage[i]) {
-            static_partition_usage[i] = 1;
+        if (static_partition_usage[i] == NULL) {
+            static_partition_usage[i] = static_partitions[i];
+            static_partitions[i]->size = size;
             if (log_file) {
-                fprintf(log_file, "Allocated %d bytes in static partition %d\n", size, i);
+                fprintf(log_file, "Allocated %d bytes in static partitioning at partition %d\n", size, i);
             }
-            return static_partitions[i];
+            return (void*)static_partitions[i];
         }
     }
-    printf("Error: Keine freien statischen Partitionen verfügbar.\n");
+    printf("Error: Keine geeignete statische Partition gefunden.\n");
     return NULL;
 }
 
 
-// Function to free static memory
-void free_static_memory(void* ptr){
+// Free static memory
+void free_static_memory(void* ptr) {
     for (int i = 0; i < NUM_PARTITIONS; i++) {
-        if (static_partitions[i] == ptr) {
-            static_partition_usage[i] = 0;
+        if (static_partition_usage[i] == ptr) {
+            static_partition_usage[i] = NULL;
+            static_partitions[i]->size = PARTITION_SIZE;
             if (log_file) {
-                fprintf(log_file, "Statischen Speicher in der Partition freigegeben %d\n", i);
+                fprintf(log_file, "Statischen Speicher in der Partition freigegeben. %d\n", i);
             }
             return;
         }
     }
-    printf("Ungültige statische Speicheradresse.\n");
-    
+    printf("Error: Ungültiger Zeiger für statische Partitionierung.\n");
 }
 
 
-// Initialize dynamic memory system
+// Initialize dynamic memory management system
 void initialize_dynamic_system() {
     dynamic_free_list = malloc(sizeof(MemoryBlock));
     dynamic_free_list->size = MEMORY_SIZE;
@@ -96,87 +96,84 @@ void initialize_dynamic_system() {
 }
 
 
-// Allocate dynamic memory using the selected allocation type
-void * allocate_dynamic_memory(int size) {
-    MemoryBlock *prev = NULL, *current = dynamic_free_list, *best_fit = NULL, *best_fit_prev = NULL;
-    while (current) {
-        if (current->size >= size) {
-            if (allocation_type == FIRST_FIT) {
-                break;
-            } else if (allocation_type == BEST_FIT) {
-                if (!best_fit || current->size < best_fit->size) {
-                    best_fit = current;
-                    best_fit_prev = prev;
-                }
+// Allocate dynamic memory
+void* allocate_dynamic_memory(int size) {
+    MemoryBlock* prev = NULL;
+    MemoryBlock* curr = dynamic_free_list;
+    while (curr) {
+        if (curr->size >= size) {
+            if (curr->size > size) {
+                MemoryBlock* new_block = (MemoryBlock*)((char*)curr + size);
+                new_block->size = curr->size - size;
+                new_block->next = curr->next;
+                curr->next = new_block;
+                curr->size = size;
             }
+            if (prev) {
+                prev->next = curr->next;
+            } else {
+                dynamic_free_list = curr->next;
+            }
+            curr->next = dynamic_allocated_list;
+            dynamic_allocated_list = curr;
+            if (log_file) {
+                fprintf(log_file, "Allocated %d bytes in dynamic allocation\n", size);
+            }
+            return (void*)(curr + 1);
         }
-        prev = current;
-        current = current->next;
+        prev = curr;
+        curr = curr->next;
     }
-    if (allocation_type == BEST_FIT) {
-        current = best_fit;
-        prev = best_fit_prev;
-    }
-    if (!current || current->size < size) {
-        printf("Error: Kein geeigneter Speicherblock gefunden.\n");
-        return NULL;
-    }
-    if (current->size == size) {
-        if (prev) {
-            prev->next = current->next;
-        } else {
-            dynamic_free_list = current->next;
-        }
-    } else {
-        MemoryBlock *new_block = (MemoryBlock *)((char *)current + size);
-        new_block->size = current->size - size;
-        new_block->next = current->next;
-        if (prev) {
-            prev->next = new_block;
-        } else {
-            dynamic_free_list = new_block;
-        }
-        current->size = size;
-    }
-    current->next = dynamic_allocated_list;
-    dynamic_allocated_list = current;
-    if (log_file) {
-        fprintf(log_file, "Allocated %d bytes dynamically\n", size);
-    }
-    return (void *)(current + 1);
+    printf("Error: Kein geeigneter Block für die dynamische Zuteilung gefunden.\n");
+    return NULL;
 }
 
 
 // Free dynamic memory
-void free_dynamic_memory(void* ptr){
-    MemoryBlock* block= (MemoryBlock*)ptr-1;
-    block->next=dynamic_free_list;
-    dynamic_free_list=block;
-    if(log_file){
-        fprintf(log_file, "Freigegebener dynamischer Speicherblock der Größe %d\n",block->size);
-
+void free_dynamic_memory(void* ptr) {
+    MemoryBlock* block = (MemoryBlock*)ptr - 1;
+    MemoryBlock* prev = NULL;
+    MemoryBlock* curr = dynamic_allocated_list;
+    while (curr && curr != block) {
+        prev = curr;
+        curr = curr->next;
+    }
+    if (!curr) {
+        printf("Error: Ungültiger Zeiger für dynamische Zuteilung.\n");
+        return;
+    }
+    if (prev) {
+        prev->next = curr->next;
+    } else {
+        dynamic_allocated_list = curr->next;
+    }
+    curr->next = dynamic_free_list;
+    dynamic_free_list = curr;
+    if (log_file) {
+        fprintf(log_file, "Freigegebener dynamischer Speicherblock der Größe %d\n", block->size);
     }
 }
 
 
-// Initialize buddy memory system
-void initialize_buddy_system(){
-    for(int i = 0; i<10;i++){
-        buddy_free_list[i]= NULL;
+// Initialize buddy system
+void initialize_buddy_system() {
+    for (int i = 0; i < 10; i++) {
+        buddy_free_list[i] = NULL;
     }
-buddy_free_list[9]= malloc(sizeof(MemoryBlock));
-buddy_free_list[9]->size=MEMORY_SIZE;
-buddy_free_list[9]->next=NULL;
-
+    buddy_free_list[9] = malloc(sizeof(MemoryBlock));
+    buddy_free_list[9]->size = MEMORY_SIZE;
+    buddy_free_list[9]->next = NULL;
 }
 
 
 // Allocate buddy memory
 void* allocate_buddy_memory(int size) {
     int order = 0;
-    while ((1 << order) < size) order++;
-    if (order > 9) {
-        printf("Error: Gewünschte Größe zu groß für das Buddy-System.\n");
+    while ((1 << order) < size) {
+        order++;
+    }
+    if (order >= 10) {
+        printf("Error: Angeforderte Größe zu groß für das Buddy-System.\n");
         return NULL;
     }
     for (int i = order; i < 10; i++) {
@@ -192,12 +189,13 @@ void* allocate_buddy_memory(int size) {
             }
             block->next = NULL;
             if (log_file) {
-                fprintf(log_file, "Allocated %d Bytes unter Verwendung des Buddy-Systems\n", size);
+                fprintf(log_file, "Allocated %d bytes in buddy system\n", size);
             }
             return (void*)(block + 1);
         }
     }
     printf("Error: Kein geeigneter Buddy-Block gefunden.\n");
+    return NULL;
 }
 
 
@@ -205,7 +203,25 @@ void* allocate_buddy_memory(int size) {
 void free_buddy_memory(void* ptr) {
     MemoryBlock* block = (MemoryBlock*)ptr - 1;
     int order = 0;
-    while ((1 << order) < block->size) order++;
+    while ((1 << order) < block->size) {
+        order++;
+    }
+    while (order < 9) {
+        MemoryBlock* buddy = (MemoryBlock*)((char*)block + block->size);
+        MemoryBlock** prev = &buddy_free_list[order];
+        while (*prev && *prev != buddy) {
+            prev = &(*prev)->next;
+        }
+        if (*prev != buddy) {
+            break;
+        }
+        *prev = buddy->next;
+        if (block > buddy) {
+            block = buddy;
+        }
+        block->size <<= 1;
+        order++;
+    }
     block->next = buddy_free_list[order];
     buddy_free_list[order] = block;
     if (log_file) {
@@ -214,10 +230,11 @@ void free_buddy_memory(void* ptr) {
 }
 
 
-// Evaluate efficiency of memory management
+// Evaluate memory management efficiency
 void evaluate_efficiency() {
     int internal_fragmentation = 0;
     int external_fragmentation = 0;
+
     switch (management_type) {
         case STATIC:
             for (int i = 0; i < NUM_PARTITIONS; i++) {
@@ -249,30 +266,18 @@ void evaluate_efficiency() {
 }
 
 
-//Function to parse command line arguments
-void parse_arguments(int argc, char* argv[]) {
+// Parse command-line arguments
+void parse_arguments(int argc, char* argv[], char** input_file) {
     for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "-Speicherverwaltung C") == 0 && i + 1 < argc) {
+        if (strcmp(argv[i], "-speicherverwaltung") == 0 && i + 1 < argc) {
             if (strcmp(argv[i + 1], "static") == 0) {
                 management_type = STATIC;
             } else if (strcmp(argv[i + 1], "dynamic") == 0) {
-                 management_type = DYNAMIC;
-            } else if (strcmp(argv[i + 1], "Buddy") == 0) {
-                 management_type = BUDDY;
-        } else {
-            printf("Error: Ungültiger Speicherverwaltungstyp.\n");
-            exit(EXIT_FAILURE);
-        }
-        i++;
-        } else if (strcmp(argv[i], "-konzept") == 0 && i + 1 < argc) {
-            if (strcmp(argv[i + 1], "first") == 0) {
-                allocation_type = FIRST_FIT;
-            } else if (strcmp(argv[i + 1], "next") == 0) {
-                allocation_type = NEXT_FIT;
-            } else if (strcmp(argv[i + 1], "best") == 0) {
-                allocation_type = BEST_FIT;
+                management_type = DYNAMIC;
+            } else if (strcmp(argv[i + 1], "buddy") == 0) {
+                management_type = BUDDY;
             } else {
-                printf("Error: Ungültiges Zuteilungskonzept.\n");
+                printf("Error: Ungültiger Speicherverwaltungstyp.\n");
                 exit(EXIT_FAILURE);
             }
             i++;
@@ -283,8 +288,11 @@ void parse_arguments(int argc, char* argv[]) {
                 exit(EXIT_FAILURE);
             }
             i++;
+        } else if (strcmp(argv[i], "-inputfile") == 0 && i + 1 < argc) {
+            *input_file = argv[i + 1];
+            i++;
         } else {
-            printf("Ungültiges Befehlszeilenargument.\n");
+            printf("Error: Ungültiges Befehlszeilenargument.\n");
             exit(EXIT_FAILURE);
         }
     }
@@ -294,7 +302,7 @@ void parse_arguments(int argc, char* argv[]) {
 // Function to handle user input interactively
 void handle_user_input() {
     while (1) {
-        printf("Geben Sie Befehl ein (allocate <Größe> / free <Adresse> / Beenden): ");
+        printf("Enter command (allocate <size> / free <address> / exit): ");
         char command[10];
         int size;
         void* address;
@@ -313,7 +321,7 @@ void handle_user_input() {
                     ptr = allocate_buddy_memory(size);
                     break;
             }
-            printf("Allocated at address: %p\n", ptr);
+            printf("Zugewiesen unter der Adresse: %p\n", ptr);
         } else if (strcmp(command, "free") == 0) {
             scanf("%p", &address);
             switch (management_type) {
@@ -327,20 +335,75 @@ void handle_user_input() {
                     free_buddy_memory(address);
                     break;
             }
-        printf("Speicher bei Adresse freigegeben: %p\n", address);
-        } else if (strcmp(command, "Beenden") == 0) {
-        break;
+            printf("Speicher freigegeben unter der Adresse: %p\n", address);
+        } else if (strcmp(command, "exit") == 0) {
+            break;
         } else {
-        printf("Error: Ungültiger Befehl.\n");
+            printf("Error: Ungültiger Befehl.\n");
         }
     }
+}
+
+
+// Function to handle file input
+void handle_file_input(const char* filename) {
+    FILE* file = fopen(filename, "r");
+    if (!file) {
+        printf("Error: Eingabedatei konnte nicht geöffnet werden.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    char command[10];
+    int size;
+    void* address;
+
+    while (fscanf(file, "%s", command) != EOF) {
+        if (strcmp(command, "allocate") == 0) {
+            fscanf(file, "%d", &size);
+            void* ptr = NULL;
+            switch (management_type) {
+                case STATIC:
+                    ptr = allocate_static_memory(size);
+                    break;
+                case DYNAMIC:
+                    ptr = allocate_dynamic_memory(size);
+                    break;
+                case BUDDY:
+                    ptr = allocate_buddy_memory(size);
+                    break;
+            }
+            printf("Zugewiesen unter der Adresse: %p\n", ptr);
+        } else if (strcmp(command, "free") == 0) {
+            fscanf(file, "%p", &address);
+            switch (management_type) {
+                case STATIC:
+                    free_static_memory(address);
+                    break;
+                case DYNAMIC:
+                    free_dynamic_memory(address);
+                    break;
+                case BUDDY:
+                    free_buddy_memory(address);
+                    break;
+            }
+            printf("Speicher bei Adresse freigegeben: %p\n", address);
+        } else if (strcmp(command, "exit") == 0) {
+            break;
+        } else {
+            printf("Error: Ungültiger Befehl.\n");
+        }
+    }
+
+    fclose(file);
 }
 
 
 // Main function
 int main(int argc, char* argv[]) {
     signal(SIGINT, handle_signal);
-    parse_arguments(argc, argv);
+    char* input_file = NULL;
+    parse_arguments(argc, argv, &input_file);
+
     switch (management_type) {
         case STATIC:
             initialize_static_system();
@@ -352,7 +415,13 @@ int main(int argc, char* argv[]) {
             initialize_buddy_system();
             break;
     }
-    handle_user_input();
+
+    if (input_file) {
+        handle_file_input(input_file);
+    } else {
+        handle_user_input();
+    }
+
     evaluate_efficiency();
     if (log_file) {
         fclose(log_file);
