@@ -3,14 +3,17 @@
 #include <string.h>
 #include <signal.h>
 
+
 // Constants
 #define MEMORY_SIZE 1024
 #define PARTITION_SIZE 128
 #define NUM_PARTITIONS (MEMORY_SIZE / PARTITION_SIZE)
 
+
 // Enums for management types and allocation types
 typedef enum { STATIC, DYNAMIC, BUDDY } ManagementType;
 typedef enum { FIRST_FIT, NEXT_FIT, BEST_FIT } AllocationType;
+
 
 // Struct for memory blocks
 typedef struct MemoryBlock {
@@ -18,6 +21,7 @@ typedef struct MemoryBlock {
     struct MemoryBlock * next;
     
 } MemoryBlock;
+
 
 // Global variables
 ManagementType management_type;
@@ -29,6 +33,7 @@ MemoryBlock* dynamic_allocated_list;
 MemoryBlock* buddy_free_list[10];
 FILE* log_file = NULL;
 
+
 // Signal handler for graceful termination
 void handle_signal(int signal) {
     if (log_file) {
@@ -37,6 +42,7 @@ void handle_signal(int signal) {
     exit(EXIT_SUCCESS);
 }
 
+
 // Function to initialize static memory system
 void initialize_static_system() {
     for (int i = 0; i < NUM_PARTITIONS; i++) {
@@ -44,6 +50,7 @@ void initialize_static_system() {
         static_partition_usage[i] = 0;
     }
 }
+
 
 // Function to allocate static memory
 void* allocate_static_memory(int size) {
@@ -64,6 +71,7 @@ void* allocate_static_memory(int size) {
     return NULL;
 }
 
+
 // Function to free static memory
 void free_static_memory(void* ptr){
     for (int i = 0; i < NUM_PARTITIONS; i++) {
@@ -79,12 +87,14 @@ void free_static_memory(void* ptr){
     
 }
 
+
 // Initialize dynamic memory system
 void initialize_dynamic_system() {
     dynamic_free_list = malloc(sizeof(MemoryBlock));
     dynamic_free_list->size = MEMORY_SIZE;
     dynamic_free_list->next = NULL;
 }
+
 
 // Allocate dynamic memory using the selected allocation type
 void * allocate_dynamic_memory(int size) {
@@ -136,6 +146,7 @@ void * allocate_dynamic_memory(int size) {
     return (void *)(current + 1);
 }
 
+
 // Free dynamic memory
 void free_dynamic_memory(void* ptr){
     MemoryBlock* block= (MemoryBlock*)ptr-1;
@@ -147,6 +158,7 @@ void free_dynamic_memory(void* ptr){
     }
 }
 
+
 // Initialize buddy memory system
 void initialize_buddy_system(){
     for(int i = 0; i<10;i++){
@@ -157,6 +169,7 @@ buddy_free_list[9]->size=MEMORY_SIZE;
 buddy_free_list[9]->next=NULL;
 
 }
+
 
 // Allocate buddy memory
 void* allocate_buddy_memory(int size) {
@@ -199,7 +212,6 @@ void free_buddy_memory(void* ptr) {
         fprintf(log_file, "Freigegebener Buddy-Speicherblock der Größe %d\n", block->size);
     }
 }
-
 
 
 // Evaluate efficiency of memory management
@@ -325,7 +337,6 @@ void handle_user_input() {
 }
 
 
-
 // Main function
 int main(int argc, char* argv[]) {
     signal(SIGINT, handle_signal);
@@ -348,14 +359,3 @@ int main(int argc, char* argv[]) {
     }
     return 0;
 }
-
-
-
-
-
-
-
-
-
-
-
